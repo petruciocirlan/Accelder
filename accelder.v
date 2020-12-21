@@ -4,7 +4,7 @@ Local Open Scope string_scope.
 Local Open Scope list_scope.
 Scheme Equality for string.
 
-(* TYPE: Naturals *)
+(* TYPE: Natural *)
 Inductive typeNat :=
 (*
 | errNatDivide0 : typeNat
@@ -34,7 +34,7 @@ Notation "A *' B" := (aMul A B)(at level 48, left associativity).
 Notation "A /' B" := (aDiv A B)(at level 48, left associativity).
 Notation "A %' B" := (aMod A B)(at level 45, left associativity).
 
-(* TYPE: Booleans *)
+(* TYPE: Boolean *)
 Inductive typeBool :=
 | errBool : typeBool
 | boolTrue : typeBool
@@ -63,6 +63,17 @@ Notation "A ^' B" := (bXor A B)(at level 54, left associativity).
 Notation "A <' B" := (bLessThan A B) (at level 70).
 Notation "A ==' B" := (bEqual A B) (at level 70).
 
+(* TYPE: Integer *)
+Require Import ZArith.
+
+(* TYPE: Float *)
+
+(* TYPE: Character (ASCII) *)
+
+(* TYPE: String *)
+
+(* TYPE: Pointer? *)
+
 (* TYPE: Declarations *)
 
 Inductive Attribute :=
@@ -74,7 +85,8 @@ Inductive Decl :=
 | declVar : Attribute -> string -> Decl
 | declNat : Decl -> Decl
 | declBool : Decl -> Decl
-| declarations : Decl -> Decl -> Decl.
+| declarations : Decl -> Decl -> Decl
+| declUserType : string -> Decl -> Decl.
 
 Notation "'static' 'var' X" := (declVar static X) (at level 41).
 Notation "'constant' 'var' X" := (declVar constant X) (at level 41).
@@ -82,6 +94,7 @@ Notation "'var' X" := (declVar volatile X) (at level 42).
 Notation "X ':' 'NAT'" := (declNat X) (at level 43).
 Notation "X ':' 'BOOL'" := (declBool X) (at level 43).
 Notation "X ',' Y" := (declarations X Y) (at level 44).
+Notation "'struct' X '{' Y '}'" := (declUserType X Y) (at level 45).
 
 (* TYPE: result - value (reference for functions) *)
 Inductive Result :=
@@ -102,11 +115,13 @@ Inductive Stmt :=
 | assignNat : string -> AExp -> Stmt
 | assignBool : string -> BExp -> Stmt
 | sequence : Stmt -> Stmt -> Stmt
-| while : BExp -> Stmt -> Stmt
-| forloop : Stmt -> BExp -> Stmt -> Stmt
 | ifthenelse : BExp -> Stmt -> Stmt -> Stmt
 | ifthen : BExp -> Stmt -> Stmt
 | ternary : BExp -> Stmt -> Stmt -> Stmt
+| while : BExp -> Stmt -> Stmt
+| forloop : Stmt -> BExp -> Stmt -> Stmt
+| break
+| continue
 (*| switch : *)
 | function : string -> Decl -> Stmt -> Stmt.
 

@@ -6,13 +6,21 @@ The programming language's syntax is similar with that of the C programming lang
 Included are the most trivial instructions (if-then[-else], while, for) along with arithmetic and boolean expressions.
 
 Moreover, the following features are included:
-*code blocks with local variables;
-* functions;
-* user defined data types;
-* switch instruction;
-* ternary operator (cond ? expr_if_true : expr_if_false);
-* heap management simulation (HeapAlloc(size), HeapFree(pointer) - needs pointer type, see below;
-* static and constant variables;
-* break & continue (in loops);
-* data types (includes pointer);
-* auto keyword used at variable declaration+initialization.
+
+## Syntax:
+* [X] code blocks with local variables;
+* [X] functions;
+* [ ] data types;
+* [X] static and constant variables;
+* [X] break & continue (in loops);
+* [X] ternary operator (cond ? expr_if_true : expr_if_false);
+* [X] auto keyword used at variable declaration+initialization.
+* [X] user defined data types;
+* [ ] switch instruction;
+* [ ] heap management simulation (HeapAlloc(size), HeapFree(pointer) - needs pointer type, see above;
+
+## Semantic:
+* [ ] ...
+
+## Compiler:
+* [ ] ...
