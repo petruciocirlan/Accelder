@@ -180,7 +180,11 @@ Definition programX :=
       while ( "hello" <' "first_param" )
       {
         "hello" :N= "hello" +' 1 :D
-        "second_param" :B= !' "second_param"
+        "second_param" :B= !' "second_param" :D
+        if* ( "second_param" )
+        {
+          continue
+        } endif
       }
     } endif :D
     
@@ -189,7 +193,8 @@ Definition programX :=
     
     forloop ( var "counter" :autoL= 0 ~* "counter" <' 128 ~* "counter" :N= "counter" +' 1 )
     {
-      "foobar"(> voidArg <) call!
+      "foobar"(> voidArg <) call! :D
+      break
     } endfor :D
     
     var "that's it" : BOOL
