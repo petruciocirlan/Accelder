@@ -98,7 +98,7 @@ Notation "'var' X" := (declVar volatile X) (at level 42).
 Notation "X ':' 'NAT'" := (declNat X) (at level 43).
 Notation "X ':' 'BOOL'" := (declBool X) (at level 43).
 Notation "X ',' Y" := (declarations X Y) (at level 44).
-Notation "'struct' X '{' Y '}'" := (declUserType X Y) (at level 45).
+Notation "'struct' X '{>' Y '<}'" := (declUserType X Y) (at level 45).
 
 (* TYPE: result - value (reference for functions) *)
 Inductive Result :=
@@ -159,16 +159,29 @@ Notation "'forloop' '(' A '~*' B '~*' C ')' '{' S '}' 'endfor'" := (A :D while (
 
 Inductive Program :=
 | function : string -> Decl -> Stmt -> Program
+| globalDecl : Decl -> Program
 | program : Program -> Program -> Program.
 
+Coercion globalDecl : Decl >-> Program.
+
 Notation "'def' N '(!' P '!)' '{' S '}'" := (function N P S) (at level 92).
-Notation "P1 'enddef' P2" := (program P1 P2) (at level 99).
+Notation "P1 :P P2" := (program P1 P2) (at level 99).
 
 Definition programX :=
   def "foobar" (! voidParam !)
   {
     nop
-  } enddef
+  } :P
+  
+  def "wow" (! var "first" : NAT, var "second" : NAT !)
+  {
+    nop
+  } :P
+  
+  struct "mystruct" {>
+    var "a" : NAT,
+    var "b" : BOOL
+  <} :P
 
   def "main" (! var "num" : NAT, var "option" : BOOL !)
   {
