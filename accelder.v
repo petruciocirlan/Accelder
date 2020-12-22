@@ -128,8 +128,8 @@ Notation "A 'si' B" := (arguments A B) (at level 98).
 Inductive Stmt :=
 | nop
 | decl: Decl -> Stmt
-| declAutoLvalue : Decl -> Result -> Stmt
-| declAutoRvalue : Decl -> string -> Stmt
+| declAutoLvalue : Decl -> string -> Stmt
+| declAutoRvalue : Decl -> Result -> Stmt
 | assignNat : string -> AExp -> Stmt
 | assignBool : string -> BExp -> Stmt
 | call : string -> Arguments -> Stmt
@@ -187,7 +187,7 @@ Definition programX :=
   {
     static var "hello" : NAT :D
     "hello" :N= 0 :D
-    var "test" :autoR= "first_param" :D
+    var "test" :autoL= "first_param" :D
     if* ( "second_param" )
     {
       while ( "hello" <' "first_param" )
@@ -204,7 +204,7 @@ Definition programX :=
     "foobar"(> voidArg <) call! :D
     "foobar"(> "hello" si "option" <) call! :D
     
-    forloop ( var "counter" :autoL= 0 ~* "counter" <' 128 ~* "counter" :N= "counter" +' 1 )
+    forloop ( var "counter" :autoR= 0 ~* "counter" <' 128 ~* "counter" :N= "counter" +' 1 )
     {
       "foobar"(> voidArg <) call! :D
       (t "counter" %' 13 ==' 5 t) ?* ( break ) : ( continue )
