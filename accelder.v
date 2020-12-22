@@ -19,11 +19,11 @@ Coercion number : nat >-> typeNat.
 Inductive AExp :=
 | aVar : string -> AExp
 | aNum : typeNat -> AExp
-| aAdd : typeNat -> typeNat -> AExp
-| aSub : typeNat -> typeNat -> AExp
-| aMul : typeNat -> typeNat -> AExp
-| aDiv : typeNat -> typeNat -> AExp
-| aMod : typeNat -> typeNat -> AExp.
+| aAdd : AExp -> AExp -> AExp
+| aSub : AExp -> AExp -> AExp
+| aMul : AExp -> AExp -> AExp
+| aDiv : AExp -> AExp -> AExp
+| aMod : AExp -> AExp -> AExp.
 
 Coercion aVar : string >-> AExp.
 Coercion aNum : typeNat >-> AExp.
@@ -46,12 +46,12 @@ Coercion boolean: bool >-> typeBool.
 Inductive BExp :=
 | bVar : string -> BExp
 | bBool : typeBool -> BExp
-| bNot : typeBool -> BExp
-| bAnd : typeBool -> typeBool -> BExp
-| bOr : typeBool -> typeBool -> BExp
-| bXor : typeBool -> typeBool -> BExp
-| bLessThan : typeNat -> typeNat -> BExp
-| bEqual : typeNat -> typeNat -> BExp.
+| bNot : BExp -> BExp
+| bAnd : BExp -> BExp -> BExp
+| bOr : BExp -> BExp -> BExp
+| bXor : BExp -> BExp -> BExp
+| bLessThan : AExp -> AExp -> BExp
+| bEqual : AExp -> AExp -> BExp.
 
 Coercion bVar : string >-> BExp.
 Coercion bBool : typeBool >-> BExp.
@@ -67,10 +67,13 @@ Notation "A ==' B" := (bEqual A B) (at level 70).
 Require Import ZArith.
 
 (* TYPE: Float *)
+Require Import Floats.
 
 (* TYPE: Character (ASCII) *)
+Require Import Ascii.
 
 (* TYPE: String *)
+(* Require Import String. already imported *)
 
 (* TYPE: Pointer? *)
 
@@ -82,6 +85,7 @@ Inductive Attribute :=
 | volatile. (* default *)
 
 Inductive Decl :=
+| voidParam
 | declVar : Attribute -> string -> Decl
 | declNat : Decl -> Decl
 | declBool : Decl -> Decl
@@ -104,16 +108,31 @@ Inductive Result :=
 | resultBool : typeBool -> Result.
 (*| codeRef : Stmt -> Result.*)
 
+Coercion resultNat : typeNat >-> Result.
+Coercion resultBool : typeBool >-> Result.
+
 (*Inductive Cases :=
 | caseDefault
 | case : Result -> Cases
 | *)
 
+Inductive Arguments :=
+| voidArg
+| argument : string -> Arguments
+| arguments : Arguments -> Arguments -> Arguments.
+
+Coercion argument: string >-> Arguments.
+Notation "A 'si' B" := (arguments A B) (at level 98).
+
 (* TYPE: Instructions *)
 Inductive Stmt :=
-| declAuto : Decl -> Result -> Stmt
+| nop
+| decl: Decl -> Stmt
+| declAutoLvalue : Decl -> Result -> Stmt
+| declAutoRvalue : Decl -> string -> Stmt
 | assignNat : string -> AExp -> Stmt
 | assignBool : string -> BExp -> Stmt
+| call : string -> Arguments -> Stmt
 | sequence : Stmt -> Stmt -> Stmt
 | ifthenelse : BExp -> Stmt -> Stmt -> Stmt
 | ifthen : BExp -> Stmt -> Stmt
@@ -121,27 +140,60 @@ Inductive Stmt :=
 | while : BExp -> Stmt -> Stmt
 | forloop : Stmt -> BExp -> Stmt -> Stmt
 | break
-| continue
+| continue.
 (*| switch : *)
-| function : string -> Decl -> Stmt -> Stmt.
+
+Coercion decl: Decl >-> Stmt.
 
 Notation "A ':N=' B" := (assignNat A B) (at level 90).
 Notation "A ':B=' B" := (assignBool A B) (at level 90).
-Notation "A ':auto=' B" := (declAuto A B) (at level 90).
+Notation "A ':autoL=' B" := (declAutoLvalue A B) (at level 91).
+Notation "A ':autoR=' B" := (declAutoRvalue A B) (at level 91).
+Notation "A '(>' B '<)' 'call!'" := (call A B) (at level 91).
 Notation "S1 ':D' S2" := (sequence S1 S2) (at level 93, right associativity).
-Notation "'if' '(' cond ')' '{' S1 '}' 'else' '{' S2 '}'" := (ifthenelse cond S1 S2) (at level 94).
-Notation "'if' '(' cond ')' '{' S '}'" := (ifthen cond S) (at level 95).
+Notation "'if*' '(' cond ')' '{' S1 '}' 'else*' '{' S2 '}' 'endif'" := (ifthenelse cond S1 S2) (at level 94).
+Notation "'if*' '(' cond ')' '{' S '}' 'endif'" := (ifthen cond S) (at level 95).
 Notation "'(' cond ')' '?' '(' Strue ')' ':' '(' Sfalse ')'" := (ternary cond Strue Sfalse) (at level 95).
 Notation "'while' '(' cond ')' '{' S '}'" := (while cond S) (at level 96).
-Notation "'forloop' ( A ~ B ~ C ) { S }" := (A :D while (B) { S :D C }) (at level 97).
-Notation "'def' N '(' P ')' '{' S '}'" := (function N P S) (at level 89).
+Notation "'forloop' '(' A '~*' B '~*' C ')' '{' S '}' 'endfor'" := (A :D while (B) { S :D C }) (at level 97).
 
+Inductive Program :=
+| function : string -> Decl -> Stmt -> Program
+| program : Program -> Program -> Program.
 
+Notation "'def' N '(!' P '!)' '{' S '}'" := (function N P S) (at level 92).
+Notation "P1 'enddef' P2" := (program P1 P2) (at level 99).
 
+Definition programX :=
+  def "foobar" (! voidParam !)
+  {
+    nop
+  } enddef
 
+  def "main" (! var "num" : NAT, var "option" : BOOL !)
+  {
+    static var "hello" : NAT :D
+    "hello" :N= 0 :D
+    var "test" :autoR= "first_param" :D
+    if* ( "second_param" )
+    {
+      while ( "hello" <' "first_param" )
+      {
+        "hello" :N= "hello" +' 1 :D
+        "second_param" :B= !' "second_param"
+      }
+    } endif :D
+    
+    "foobar"(> voidArg <) call! :D
+    "foobar"(> "hello" si "option" <) call! :D
+    
+    forloop ( var "counter" :autoL= 0 ~* "counter" <' 128 ~* "counter" :N= "counter" +' 1 )
+    {
+      "foobar"(> voidArg <) call!
+    } endfor :D
+    
+    var "that's it" : BOOL
+  }
+  .
 
-
-
-
-
-
+Check programX.
