@@ -153,7 +153,7 @@ Notation "A '(>' B '<)' 'call!'" := (call A B) (at level 91).
 Notation "S1 ':D' S2" := (sequence S1 S2) (at level 93, right associativity).
 Notation "'if*' '(' cond ')' '{' S1 '}' 'else*' '{' S2 '}' 'endif'" := (ifthenelse cond S1 S2) (at level 94).
 Notation "'if*' '(' cond ')' '{' S '}' 'endif'" := (ifthen cond S) (at level 95).
-Notation "'(' cond ')' '?' '(' Strue ')' ':' '(' Sfalse ')'" := (ternary cond Strue Sfalse) (at level 95).
+Notation "'(t' cond 't)' '?*' '(' Strue ')' ':' '(' Sfalse ')'" := (ternary cond Strue Sfalse) (at level 95).
 Notation "'while' '(' cond ')' '{' S '}'" := (while cond S) (at level 96).
 Notation "'forloop' '(' A '~*' B '~*' C ')' '{' S '}' 'endfor'" := (A :D while (B) { S :D C }) (at level 97).
 
@@ -194,7 +194,7 @@ Definition programX :=
     forloop ( var "counter" :autoL= 0 ~* "counter" <' 128 ~* "counter" :N= "counter" +' 1 )
     {
       "foobar"(> voidArg <) call! :D
-      break
+      (t "counter" %' 13 ==' 5 t) ?* ( break ) : ( continue )
     } endfor :D
     
     var "that's it" : BOOL
