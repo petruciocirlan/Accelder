@@ -8,19 +8,18 @@ Included are the most trivial instructions (if-then[-else], while, for) along wi
 Moreover, the following features are included:
 
 ## Syntax:
-* [X] code blocks with local variables;
+* [ ] code blocks with local variables;
 * [X] functions;
 * [ ] data types;
-* [X] static and constant variables;
-* [X] break & continue (in loops);
+* [ ] static and constant variables;
+* [ ] break & continue (in loops);
 * [X] ternary operator (cond ? expr_if_true : expr_if_false);
 * [X] auto keyword used at variable declaration+initialization.
-* [X] user defined data types;
+* [ ] user defined data types;
 * [ ] switch instruction;
 * [ ] heap management simulation (HeapAlloc(size), HeapFree(pointer) - needs pointer type, see above;
 
 ## Semantic:
 * [ ] ...
 
-## Compiler:
-* [ ] ...
+## ~~Compiler:~~
