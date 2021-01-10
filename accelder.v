@@ -565,16 +565,16 @@ Fixpoint evalStmts (stmts : Stmt) (conf : Config) (gas : nat) : Config :=
       match conf with
       | config zone env mem stack =>
         if (Mem_beq (env symbol) mem_default)
-        then update_conf conf (S zone) (update_env env symbol (offset (S zone))) (update_mem mem (update_env env symbol (offset (S zone))) symbol (offset (S zone)) (aeval aexp conf)) stack
-        else update_conf conf zone env (update_mem mem env symbol (env symbol) errRedeclared) stack
+        then update_conf conf zone env (update_mem mem env symbol (env symbol) errUndeclared) stack
+        else update_conf conf (S zone) (update_env env symbol (offset (S zone))) (update_mem mem (update_env env symbol (offset (S zone))) symbol (offset (S zone)) (aeval aexp conf)) stack
       end
 
     | assignBool symbol bexp =>
       match conf with
       | config zone env mem stack =>
         if (Mem_beq (env symbol) mem_default)
-        then update_conf conf (S zone) (update_env env symbol (offset (S zone))) (update_mem mem (update_env env symbol (offset (S zone))) symbol (offset (S zone)) (beval bexp conf)) stack
-        else update_conf conf zone env (update_mem mem env symbol (env symbol) errRedeclared) stack
+        then update_conf conf zone env (update_mem mem env symbol (env symbol) errUndeclared) stack
+        else update_conf conf (S zone) (update_env env symbol (offset (S zone))) (update_mem mem (update_env env symbol (offset (S zone))) symbol (offset (S zone)) (resultBool (beval bexp conf))) stack
       end
 
     | call symbol args =>
@@ -586,11 +586,11 @@ Fixpoint evalStmts (stmts : Stmt) (conf : Config) (gas : nat) : Config :=
           then
             match conf with
             | config zone env mem stack =>
-              match (update_conf_arguments D args conf 32) with
+              match (update_conf_arguments D args (update_conf conf zone env0 mem stack) 32) with
               | config zone1 env1 mem1 stack1 =>
                 match evalStmts St (update_conf (config zone1 env1 mem1 stack1) zone1 env1 mem1 (env :: stack1)) gas' with
                 | config zoneR envR memR stackR =>
-                  update_conf (config zoneR envR memR stackR) zoneR envR memR stack
+                  update_conf (config zoneR envR memR stackR) zoneR env memR stack
                 end
               end
             end
@@ -605,9 +605,14 @@ Fixpoint evalStmts (stmts : Stmt) (conf : Config) (gas : nat) : Config :=
                                then evalStmts S1 conf gas'
                                else evalStmts S2 conf gas'
 
-    | ifthen cond St => if (beval cond conf)
-                        then evalStmts St conf gas'
-                        else conf
+    | ifthen cond St =>
+      match (beval cond conf) with
+      | boolean b =>
+        if (b)
+        then evalStmts St conf gas'
+        else conf
+      | _ => conf
+      end
 
     | ternary cond S1 S2 => evalStmts (ifthenelse cond S1 S2) conf gas'
 
@@ -669,25 +674,21 @@ Definition programX :=
     var "test" :auto= "boooool" :D
     if* ( "test" )
     {
+      "boooool" :B= 32 <' "hello" :D
       while ( "hello" <' 32 )
       {
-        "hello" :N= "hello" +' 1 :D
-        "second_param" :B= !' "second_param" :D
-        if* ( "second_param" )
-        {
-          continue
-        } endif
+        "hello" :N= "hello" +' 1
       }
     } endif :D
     
     "foobar"(> voidArg <) call! :D
-    "foobar"(> "hello" si "option" <) call! :D
+    (*"foobar"(> "hello" si "option" <) call! :D*)
     
     var "counter" : NAT :D
     forloop ( "counter" :N= 0 ~* "counter" <' 128 ~* "counter" :N= "counter" +' 1 )
     {
-      "foobar"(> voidArg <) call! :D
-      (t "counter" %' 13 ==' 5 t) ?* ( break ) : ( continue )
+      "foobar"(> voidArg <) call!
+      (*(t "counter" %' 13 ==' 5 t) ?* ( break ) : ( continue )*)
     } endfor :D
     
     var "that's it" : BOOL
@@ -698,12 +699,19 @@ Definition programY :=
   def "main" (! voidParam !)
   {
     var "hello" : NAT :D
-    "hello" :N= 0 :D
     
-    var "that's it" : BOOL
+    (*"hello" :N= 9 :D*)
+    
+    (*var "hah" :auto= "hello" :D*)
+    
+    var "hah" : NAT :D
+    
+    (*"hah" :N= "hah" +' 3 +' "hello" :D*)
+    
+    var "end" : BOOL
   }.
 
-Check programX.
+Check programY.
 
 Compute match (run programX) with
   | config zone env mem stack =>

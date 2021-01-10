@@ -8,7 +8,7 @@ Included are the most trivial instructions (if-then[-else], while, for) along wi
 Moreover, the following features are included:
 
 ## Syntax:
-* [ ] code blocks with local variables;
+* [X] code blocks with local variables;
 * [X] functions;
 * [ ] data types;
 * [ ] static and constant variables;
