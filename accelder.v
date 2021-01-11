@@ -6,11 +6,6 @@ Scheme Equality for string.
 
 (* TYPE: Natural *)
 Inductive typeNat :=
-(*
-| errNatDivide0 : typeNat
-| errNatModulo0 : typeNat
-| errNatNegative : typeNat
-*)
 | errNat : typeNat
 | number : nat -> typeNat.
 
@@ -99,7 +94,7 @@ Inductive Decl :=
 Notation "'var' X" := (declVar volatile X) (at level 42).
 Notation "X ':' 'NAT'" := (declNat X) (at level 43).
 Notation "X ':' 'BOOL'" := (declBool X) (at level 43).
-Notation "X ',' Y" := (declarations X Y) (at level 44).
+Notation "X ',' Y" := (declarations X Y) (at level 41, left associativity).
 (*Notation "'struct' X '{>' Y '<}'" := (declUserType X Y) (at level 45).*)
 
 (*Inductive Cases :=
@@ -113,7 +108,7 @@ Inductive Arguments :=
 | arguments : Arguments -> Arguments -> Arguments.
 
 Coercion argument: string >-> Arguments.
-Notation "A 'si' B" := (arguments A B) (at level 98).
+Notation "A 'si' B" := (arguments A B) (at level 98, left associativity).
 
 (* TYPE: Instructions *)
 Inductive Stmt :=
@@ -233,7 +228,8 @@ Inductive Config :=
      MemLayer: memory layer
      Stack: stack 
   *)
-  | config : nat -> Env -> MemLayer -> Stack -> Config.
+  | config : nat -> Env -> MemLayer -> Stack -> Config
+  | errConfig.
 
 (* Function for updating the environment *)
 Definition update_env (env: Env) (x: string) (n: Mem) : Env :=
@@ -284,9 +280,9 @@ Fixpoint aeval (exp : AExp) (conf : Config) : typeNat :=
     | aAdd exp1 exp2 => match (aeval exp1 conf) with
       | number X => match (aeval exp2 conf) with
         | number Y => Nat.add X Y
-        | errNat => errNat
+        | _ => errNat
         end
-      | errNat => errNat
+      | _ => errNat
       end
 
     | aSub exp1 exp2 => match (aeval exp1 conf) with
@@ -296,15 +292,15 @@ Fixpoint aeval (exp : AExp) (conf : Config) : typeNat :=
                       else Nat.sub X Y
         | errNat => errNat
         end
-      | errNat => errNat
+      | _ => errNat
       end
 
     | aMul exp1 exp2 => match (aeval exp1 conf) with
       | number X => match (aeval exp2 conf) with
         | number Y => Nat.mul X Y
-        | errNat => errNat
+        | _ => errNat
         end
-      | errNat => errNat
+      | _ => errNat
       end
 
     | aDiv exp1 exp2 => match (aeval exp1 conf) with
@@ -312,9 +308,9 @@ Fixpoint aeval (exp : AExp) (conf : Config) : typeNat :=
         | number Y => if (Nat.eqb Y 0)
                       then errNat
                       else Nat.div X Y
-        | errNat => errNat
+        | _ => errNat
         end
-      | errNat => errNat
+      | _ => errNat
       end
 
     | aMod exp1 exp2 => match (aeval exp1 conf) with
@@ -322,11 +318,12 @@ Fixpoint aeval (exp : AExp) (conf : Config) : typeNat :=
         | number Y => if (Nat.eqb Y 0)
                       then errNat
                       else Nat.modulo X Y
-        | errNat => errNat
+        | _ => errNat
         end
-      | errNat => errNat
+      | _ => errNat
       end
     end
+  | _ => errNat
   end.
 
 Fixpoint beval (bexp : BExp) (conf : Config) : typeBool :=
@@ -389,6 +386,7 @@ Fixpoint beval (bexp : BExp) (conf : Config) : typeBool :=
       | errNat => errBool
       end
     end
+  | _ => errBool
   end.
 
 Definition get_fn_signature (conf : Config) (symbol : string) : typeFunction :=
@@ -397,6 +395,7 @@ Definition get_fn_signature (conf : Config) (symbol : string) : typeFunction :=
                                   | resultFunc X => X
                                   | _ => funcUndeclared
                                   end
+  | _ => funcUndeclared
   end.
 
 Definition check_if_fn_exists (conf : Config) (symbol : string) : bool :=
@@ -415,12 +414,14 @@ Fixpoint check_fn_arguments (conf : Config) (params : Decl) (args : Arguments) :
   | declNat D => match args with
     | argument symbol => match conf with
       | config zone env mem stack => check_eq_over_types (mem (env symbol)) (number 0)
+      | _ => false
       end
     | _ => false
     end
   | declBool D => match args with
     | argument symbol => match conf with
       | config zone env mem stack => check_eq_over_types (mem (env symbol)) true
+      | _ => false
       end
     | _ => false
     end
@@ -436,13 +437,13 @@ Fixpoint update_conf_decls (decls : Decl) (conf : Config) (gas : nat) : Config :
   | S gas' => match conf with
     | config zone env mem stack => match decls with
       | voidParam => conf
-      | declVar attr symbol => conf (*err*)
+      | declVar attr symbol => errConfig
       | declNat D => match D with
         | declVar attr symbol =>
             if (Mem_beq (env symbol) mem_default)
             then update_conf conf (S zone) (update_env env symbol (offset (S zone))) (update_mem mem (update_env env symbol (offset (S zone))) symbol (offset (S zone)) (number 0)) stack
             else update_conf conf zone env (update_mem mem env symbol (env symbol) errRedeclared) stack
-        | _ => conf (*err*)
+        | _ => errConfig
         end
       | declBool D => match D with
         | declVar attr symbol => match attr with
@@ -452,10 +453,11 @@ Fixpoint update_conf_decls (decls : Decl) (conf : Config) (gas : nat) : Config :
             then update_conf conf (S zone) (update_env env symbol (offset (S zone))) (update_mem mem (update_env env symbol (offset (S zone))) symbol (offset (S zone)) false) stack
             else update_conf conf zone env (update_mem mem env symbol (env symbol) errRedeclared) stack
           end
-        | _ => conf (*err*)
+        | _ => errConfig
         end
       | declarations D1 D2 => update_conf_decls D2 (update_conf_decls D1 conf gas') gas'
       end
+    | _ => errConfig
     end
   end.
 
@@ -468,40 +470,68 @@ Fixpoint parseInit (program : Program) (conf : Config) (gas : nat) : Config :=
       | function symbol signature => update_conf conf (S zone) (update_env env symbol (offset (S zone))) (update_mem mem (update_env env symbol (offset (S zone))) symbol (offset (S zone)) signature) stack
       | globalDecl X => update_conf_decls X conf gas'
       end
+    | _ => errConfig
     end
   end.
 
-Definition update_conf_argument (param : Decl) (arg : Arguments) (conf : Config) : Config :=
+Definition update_conf_argument (param : Decl) (arg : Arguments) (oldConf conf : Config) : Config :=
   match param with
   | declNat D => match D with
     | declVar attr symbol => match arg with
       | argument argname => match conf with
-        | config zone env mem stack => update_conf conf (S zone) (update_env env symbol (offset (S zone))) (update_mem mem (update_env env symbol (offset (S zone))) symbol (offset (S zone)) (mem (env argname))) stack
+        | config zone env mem stack =>
+          match oldConf with
+          | config oldZone oldEnv oldMem oldStack =>
+            update_conf conf (S zone) (update_env env symbol (offset (S zone))) (update_mem mem (update_env env symbol (offset (S zone))) symbol (offset (S zone)) (oldMem (oldEnv argname))) stack
+          | _ => errConfig
+          end
+        | _ => errConfig
         end
-      | _ => conf (*err*)
+      | _ => errConfig
       end
-    | _ => conf (*err*)
+    | _ => errConfig
     end
-  | _ => conf (*err*)
+  | declBool D => match D with
+    | declVar attr symbol => match arg with
+      | argument argname => match conf with
+        | config zone env mem stack =>
+          match oldConf with
+          | config oldZone oldEnv oldMem oldStack =>
+            update_conf conf (S zone) (update_env env symbol (offset (S zone))) (update_mem mem (update_env env symbol (offset (S zone))) symbol (offset (S zone)) (oldMem (oldEnv argname))) stack
+          | _ => errConfig
+          end
+        | _ => errConfig
+        end
+      | _ => errConfig
+      end
+    | _ => errConfig
+    end
+  | _ => errConfig
   end.
+  
+(* DEBUGGING DEBUGGING DEBUGGING DEBUGGING *)
 
-Fixpoint update_conf_arguments (params : Decl) (args : Arguments) (conf : Config) (gas : nat) : Config :=
+Fixpoint update_conf_arguments (params : Decl) (args : Arguments) (oldConf conf : Config) (gas : nat) : Config :=
   match gas with
   | 0 => conf
   | S gas' => match params with
     | declarations D1 D2 => match args with
-      | arguments A1 A2 => update_conf_arguments D2 A2 (update_conf_arguments D1 A1 conf gas') gas'
-      | _ => conf (*err*)
+      | arguments A1 A2 => update_conf_arguments D2 A2 oldConf (update_conf_arguments D1 A1 oldConf conf gas') gas'
+      | _ => errConfig
       end
     | declNat D => match args with
-      | argument A => update_conf_argument D A conf
-      | _ => conf (*err*)
+      | argument A => update_conf_argument (declNat D) (argument A) oldConf conf
+      | _ => errConfig
       end
     | declBool D => match args with
-      | argument A => update_conf_argument D A conf
-      | _ => conf (*err*)
+      | argument A => update_conf_argument (declNat D) (argument A) oldConf conf
+      | _ => errConfig
       end
-    | _ => conf (*err*)
+    | voidParam => match args with
+      | voidArg => conf
+      | _ => errConfig
+      end
+    | _ => errConfig
     end
   end.
 
@@ -516,7 +546,8 @@ Fixpoint evalStmts (stmts : Stmt) (conf : Config) (gas : nat) : Config :=
 
     | declStmt D => update_conf_decls D conf 32
 
-    | declAutovalue D esymbol => match D with
+    | declAutovalue D esymbol =>
+      match D with
       | declVar attr nsymbol =>
         match conf with
         | config zone env mem stack =>
@@ -526,8 +557,9 @@ Fixpoint evalStmts (stmts : Stmt) (conf : Config) (gas : nat) : Config :=
             then update_conf conf zone env (update_mem mem env nsymbol (env nsymbol) errUndeclared) stack
             else update_conf conf (S zone) (update_env env nsymbol (offset (S zone))) (update_mem mem (update_env env nsymbol (offset (S zone))) nsymbol (offset (S zone)) (mem (env esymbol))) stack
           else update_conf conf zone env (update_mem mem env nsymbol (env nsymbol) errRedeclared) stack
+        | _ => errConfig
         end
-      | _ => conf (*err*)
+      | _ => errConfig
       end
 
     | assignNat symbol exp =>
@@ -536,6 +568,7 @@ Fixpoint evalStmts (stmts : Stmt) (conf : Config) (gas : nat) : Config :=
         if (Mem_beq (env symbol) mem_default)
         then update_conf conf zone env (update_mem mem env symbol (env symbol) errUndeclared) stack
         else update_conf conf zone env (update_mem mem env symbol (env symbol) (aeval exp conf)) stack
+      | _ => errConfig
       end
 
     | assignBool symbol exp =>
@@ -544,6 +577,7 @@ Fixpoint evalStmts (stmts : Stmt) (conf : Config) (gas : nat) : Config :=
         if (Mem_beq (env symbol) mem_default)
         then update_conf conf zone env (update_mem mem env symbol (env symbol) errUndeclared) stack
         else update_conf conf zone env (update_mem mem env symbol (env symbol) (resultBool (beval exp conf))) stack
+      | _ => errConfig
       end
 
     | call symbol args =>
@@ -555,18 +589,21 @@ Fixpoint evalStmts (stmts : Stmt) (conf : Config) (gas : nat) : Config :=
           then
             match conf with
             | config zone env mem stack =>
-              match (update_conf_arguments D args (update_conf conf zone (update_env env0 "result" (env "result"))  mem stack) 32) with
+              match (update_conf_arguments D args conf (update_conf conf zone (update_env env0 "result" (env "result")) mem stack) 32) with
               | config zone1 env1 mem1 stack1 =>
                 match evalStmts St (update_conf (config zone1 env1 mem1 stack1) zone1 env1 mem1 (env :: stack1)) gas' with
                 | config zoneR envR memR stackR =>
-                  update_conf (config zoneR envR memR stackR) zoneR env memR stack
+                  update_conf (config zoneR envR memR stackR) zone(*R*) env memR stack
+                | _ => errConfig
                 end
+              | _ => errConfig
               end
+            | _ => errConfig
             end
-          else conf
-        | _ => conf (*err*)
+          else errConfig
+        | _ => errConfig
         end
-      else conf
+      else errConfig
 
     | sequence S1 S2 => evalStmts S2 (evalStmts S1 conf gas') gas'
 
@@ -576,7 +613,7 @@ Fixpoint evalStmts (stmts : Stmt) (conf : Config) (gas : nat) : Config :=
         if (b)
         then evalStmts S1 conf gas'
         else evalStmts S2 conf gas'
-      | _ => conf
+      | _ => errConfig
       end
 
     | ifthen cond St =>
@@ -585,7 +622,7 @@ Fixpoint evalStmts (stmts : Stmt) (conf : Config) (gas : nat) : Config :=
         if (b)
         then evalStmts St conf gas'
         else conf
-      | _ => conf (*err*)
+      | _ => errConfig
       end
 
     | ternary cond S1 S2 => evalStmts (ifthenelse cond S1 S2) conf gas'
@@ -596,14 +633,14 @@ Fixpoint evalStmts (stmts : Stmt) (conf : Config) (gas : nat) : Config :=
         if (b)
         then evalStmts (whileloop cond St) (evalStmts St conf gas') gas'
         else conf
-      | _ => conf (*err*)
+      | _ => errConfig
       end
 (*
     | forloop Si cond Sr Sb => match evalStmts Si conf gas' with
       | conf2 => evalStmts (whileloop cond (sequence Sb Sr)) conf2 gas'
       end
 *)
-    | _ => conf
+    | _ => errConfig
     end
   end.
 
@@ -612,16 +649,17 @@ Definition evalMain (func : Result) (conf : Config) : Config :=
   | resultFunc fn => match fn with
     | func D stmts => match D with
       | voidParam => evalStmts stmts conf 64
-      | _ => conf
+      | _ => errConfig
       end
-    | funcUndeclared => conf
+    | funcUndeclared => errConfig
     end
-  | _ => conf (*err*)
+  | _ => errConfig
   end.
 
 Definition run (program : Program) : Config :=
   match (parseInit program (config 0 (update_env env0 "result" (offset 0)) (update_mem mem0 (update_env env0 "result" (offset 0)) "result" (offset 0) (number 0)) nil) 32) with
   | config level env mem stack => evalMain (mem (env "main")) (config level env mem stack)
+  | _ => errConfig
   end.
 
 Definition programX :=
@@ -630,9 +668,16 @@ Definition programX :=
     "result" :N= "result" +' 1
   } :P
   
-  def "wow" (! var "first" : NAT, var "second" : NAT !)
+  def "assign" (! var "first" : NAT, var "second" : BOOL !)
   {
-    "result" :N= "first"
+    if* ( !' "second" )
+    {
+      "result" :N= 123
+    }
+    else*
+    {
+      "result" :N= "first"
+    } endif
   } :P
   
   (*struct "mystruct" {>
@@ -650,13 +695,11 @@ Definition programX :=
     
     var "test" :auto= "boooool" :D
     
-    "boooool" :B= false :D
-    
     if* ( "test" )
     {
       while ( "hello" <' 32 )
       {
-        "boooool" :B= true :D
+        "boooool" :B= false :D
         "hello" :N= "hello" +' 1
       } endwhile
     }
@@ -665,15 +708,13 @@ Definition programX :=
       "hello" :N= 99
     } endif :D
     
-    "foobar"(> voidArg <) call! :D
-    var "foobar_result" :auto= "result" :D
+    var "loopresult" :auto= "hello" :D
     
     var "sum" : NAT :D "sum" :N= 0 :D
     
     "result" :N= 0 :D
     
     var "passes5" : BOOL :D "passes5" :B= false :D
-    
     
     var "counter" : NAT :D
     forloop ( "counter" :N= 5 ~* !'(("counter" %' 13) ==' 3)  ~* "counter" :N= "counter" +' 1 )
@@ -682,6 +723,9 @@ Definition programX :=
       "sum" :N= "sum" +' "result" :D
       (t "counter" ==' 6 t) ?* ( "passes5" :B= true ) : ( nop )
     } endfor :D
+    
+    "assign"(> "hello" si "boooool" <) call! :D
+    var "foobar_result" :auto= "result" :D
     
     "result" :N= "counter"
   }
@@ -707,21 +751,6 @@ Check programY.
 
 Compute match (run programX) with
   | config zone env mem stack =>
-    (mem (env "passes5"))
+    (mem (env "foobar_result"))
+  | _ => 999
   end.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
